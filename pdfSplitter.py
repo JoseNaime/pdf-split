@@ -1,46 +1,58 @@
-from pdf2image import convert_from_path
 import sys
 import os
+import fitz  # PyMuPDF
 
+def extract_name_from_file_path(file_path):
+    """ Extracts and returns the file name without extension from a file path. """
+    return os.path.splitext(os.path.basename(file_path))[0]
 
-def extractNameFromFilePath(filePath):
-    split_path = filePath.split("/")
-    name = split_path[-1]
-    name_without_ext = name.split(".")[0]
-    return name_without_ext
+def ensure_folder_exists(folder_path):
+    """ Ensures the output folder exists, creates it if it doesn't. """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
+def split_pdf_to_files(doc, output_base):
+    """ Splits the PDF into individual files. """
+    for page_num in range(len(doc)):
+        with fitz.open() as new_pdf:
+            new_pdf.insert_pdf(doc, from_page=page_num, to_page=page_num)
+            output_filename = f"{output_base}-Page-{page_num + 1}.pdf"
+            new_pdf.save(output_filename)
+            print(f"Saved: {output_filename}")
 
-def removeEndSlashFromPath(filePath):
-    if filePath.endswith("/"):
-        return filePath[:-1]
-    return filePath
+def convert_pdf_to_png(doc, output_base):
+    """ Converts PDF pages to PNG format. """
+    for page_number in range(len(doc)):
+        page = doc.load_page(page_number)
+        pix = page.get_pixmap()
+        output_file = f"{output_base}-Page-{page_number + 1}.png"
+        pix.save(output_file)
 
+def process_pdf(input_file_path, output_folder):
+    """ Processes the PDF to split and convert to PNG. """
+    output_filename_base = f"{output_folder}/{extract_name_from_file_path(input_file_path)}"
 
-# Read first argument
-try:
+    with fitz.open(input_file_path) as doc:
+        if len(doc) == 0:
+            raise Exception("No pages found in the document")
 
-    if sys.argv[1] == "--help" or sys.argv[1] == "-h":
-        print("Usage: pdfSplitter <input_file_path> <output_folder_path>")
+        split_pdf_to_files(doc, output_filename_base)
+        convert_pdf_to_png(doc, output_filename_base)
 
-    if len(sys.argv) < 2:
-        raise Exception("No file path provided")
+def main():
+    """ Main function to handle command-line arguments and run processes. """
+    try:
+        if len(sys.argv) < 3:
+            raise Exception("Usage: pdfSplitter <input_file_path> <output_folder_path>")
 
-    filepath = removeEndSlashFromPath(sys.argv[1])
-    output_folder = removeEndSlashFromPath(sys.argv[2])
+        input_file_path = sys.argv[1]
+        output_folder = sys.argv[2]
+        ensure_folder_exists(output_folder)
 
-    # check if output_folder exists, if not, create it
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+        process_pdf(input_file_path, output_folder)
 
-    # Convert PDF to list of images
-    images = convert_from_path(filepath)
+    except Exception as e:
+        print(f"Caught an error: {e}")
 
-    if len(images) == 0:
-        raise Exception("File not found or not pages")
-
-    # Save each page as an image
-    for i, image in enumerate(images):
-        image.save(f'{output_folder}/{extractNameFromFilePath(filepath)}-Page-{i + 1}.png', 'PNG')
-
-except Exception as e:
-    print(f"Caught an error: {e}")
+if __name__ == "__main__":
+    main()
