@@ -19,7 +19,7 @@ After installation, you can use the tool from the command line. Here's a basic e
 
 ```python
 # To split a PDF into individual pages and export in PDF and PNG
-local-pdf-splitter-converter input_file.pdf output_directory
+pdf-split <input_file.pdf> <output_directory>
 ```
 
 ## Features
